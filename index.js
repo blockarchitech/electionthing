@@ -118,6 +118,7 @@ app.use('/graphql', graphqlHTTP({
 
 app.use(express.static('public'));
 
+const __dirname = new URL('.', import.meta.url).pathname;
 app.get('/map', (req, res) => {
     res.sendFile(__dirname + '/public/map.html');
 });
