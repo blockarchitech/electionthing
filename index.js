@@ -38,7 +38,8 @@ const getElectionResults = async () => {
                     date: poll.ready_at,
                     leader: result.leader,
                     pollster: poll.pollster,
-                    sample_size: poll.sample_size
+                    sample_size: poll.sample_size,
+                    party: result.party
                 };
             });
             state.push(...results);
