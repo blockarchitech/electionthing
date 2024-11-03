@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Election Globe</title>
+    <link rel="stylesheet" href="https://cesium.com/downloads/cesiumjs/releases/1.83/Build/Cesium/Widgets/widgets.css">
+    <style>
+        #cesiumContainer {
+            width: 100%;
+            height: 100vh;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+        }
+    </style>
+</head>
+<body>
+    <div id="cesiumContainer"></div>
+    <script src="https://cesium.com/downloads/cesiumjs/releases/1.83/Build/Cesium/Cesium.js"></script>
+    <script>
+        const viewer = new Cesium.Viewer('cesiumContainer', {
+            imageryProvider: new Cesium.IonImageryProvider({ assetId: 2 }),
+            baseLayerPicker: false,
+            geocoder: false
+        });
+
+        fetch('http://localhost:4000/graphql', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                query: `
+                    query {
+                        states {
+                            state
+                            results {
+                                candidate
+                                percentage
+                                leader
+                            }
+                        }
+                    }
+                `
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            const states = data.data.states;
+            states.forEach(state => {
+                const leader = state.results.find(result => result.leader);
+                const color = leader.candidate === 'Donald Trump' ? Cesium.Color.RED : Cesium.Color.BLUE;
+                getStateBoundaries(state.state).then(stateBoundaries => {
+                    viewer.entities.add({
+                        polygon: {
+                            hierarchy: Cesium.Cartesian3.fromDegreesArray(stateBoundaries),
+                            material: color.withAlpha(0.5)
+                        }
+                    });
+                });
+            });
+        });
+
+        async function getStateBoundaries(state) {
+            const response = await fetch('http://localhost:4000/graphql', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    query: `
+                        query {
+                            stateBoundaries(state: "${state}") {
+                                boundaries
+                            }
+                        }
+                    `
+                })
+            });
+            const data = await response.json();
+            return data.data.stateBoundaries.boundaries;
+        }
+    </script>
+</body>
+</html>

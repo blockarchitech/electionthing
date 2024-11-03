@@ -2,6 +2,7 @@ import express from 'express';
 import { graphqlHTTP } from 'express-graphql';
 import { buildSchema } from 'graphql';
 import fetch from 'node-fetch';
+import cors from 'cors';
 
 const CACHE_TTL = 60 * 60 * 1000; // 1 hour in milliseconds
 let cache = {
@@ -66,6 +67,25 @@ const getElectionResults = async () => {
     return results;
 };
 
+const getStateBoundaries = async (state) => {
+    const query = `
+        [out:json];
+        relation["admin_level"="4"]["name"="${state}"];
+        out body;
+        >;
+        out skel qt;
+    `;
+    const response = await fetch('https://overpass-api.de/api/interpreter', {
+        method: 'POST',
+        body: query
+    });
+    const data = await response.json();
+    const coordinates = data.elements
+        .filter(element => element.type === 'way')
+        .flatMap(element => element.geometry.map(coord => [coord.lon, coord.lat]));
+    return coordinates;
+};
+
 const schema = buildSchema(`
     type Result {
         candidate: String
@@ -81,11 +101,17 @@ const schema = buildSchema(`
         results: [Result]
     }
 
+    type StateBoundary {
+        state: String
+        boundaries: [Float]
+    }
+
     type Query {
         states: [State]
         state(state: String!): State
         results: [Result]
         result(candidate: String!): Result
+        stateBoundaries(state: String!): StateBoundary
     }
 `);
 
@@ -104,10 +130,15 @@ const root = {
     result: async ({ candidate }) => {
         const results = await getElectionResults();
         return results.flatMap(s => s.results).find(r => r.candidate === candidate);
+    },
+    stateBoundaries: async ({ state }) => {
+        const boundaries = await getStateBoundaries(state);
+        return { state, boundaries };
     }
 };
 
 const app = express();
+app.use(cors());
 app.use('/graphql', graphqlHTTP({
     schema: schema,
     rootValue: root,
