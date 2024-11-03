@@ -118,6 +118,10 @@ app.use('/graphql', graphqlHTTP({
 
 app.use(express.static('public'));
 
+app.get('/map', (req, res) => {
+    res.sendFile(__dirname + '/public/map.html');
+});
+
 app.listen(4000, () => {
     console.log('Running a GraphQL API server at http://localhost:4000/graphql');
 });
