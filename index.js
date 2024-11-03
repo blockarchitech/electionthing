@@ -75,6 +75,7 @@ const schema = buildSchema(`
         leader: Boolean
         pollster: String
         sample_size: Int
+        party: String
     }
 
     type State {
